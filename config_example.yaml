@@ -1,0 +1,27 @@
+num_of_workers: 10
+pg_access:
+  host: localhost
+  dbname: twitter
+  user: crawler
+  password: ""
+cookies:
+  __ncuid: ""
+  _twitter_sess: ""
+  auth_token: ""
+  csrf_same_site: ""
+  csrf_same_site_set: 1
+  ct0: ""
+  dnt: 1
+  guest_id: ""
+  kdt: ""
+  personalization_id: ""
+  remember_checked_on: 1
+  rweb_optin: top_no_out
+  syndication_guest_id: ""
+  tfw_exp: 0
+  twid: ""
+  twtr_pixel_opt_in: Y
+  lang: en
+headers:
+  authorization: ""
+
