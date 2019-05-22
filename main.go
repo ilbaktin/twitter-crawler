@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"univer/twitter-crawler/conf"
 	"univer/twitter-crawler/crawler"
@@ -10,7 +11,11 @@ import (
 )
 
 func main() {
-	conf.Init("config.yaml")
+	var configPath string
+	flag.StringVar(&configPath, "config", "config.yaml", "path to the config file")
+	flag.Parse()
+
+	conf.Init(configPath)
 	config, err := conf.LoadConfig()
 	if err != nil {
 		fmt.Printf("can't load config, err='%v'", err)
