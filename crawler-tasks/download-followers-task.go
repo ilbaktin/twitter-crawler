@@ -146,7 +146,7 @@ func (task DownloadFollowersTask) doShowOptionsRequest() error {
 	return nil
 }
 
-func (task DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (userJsonResp *usersJsonResponseNew, err error) {
+func (task DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (userJsonResp *usersJsonResponse, err error) {
 	usersReq, err := task.createUsersRequest(userId, cursor)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (task DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (u
 
 	jsonBytes, err := ioutil.ReadAll(resp.Body)
 
-	usersJsonResp := &usersJsonResponseNew{}
+	usersJsonResp := &usersJsonResponse{}
 	err = json.Unmarshal(jsonBytes, usersJsonResp)
 	if err != nil {
 		return nil, err

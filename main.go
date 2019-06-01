@@ -24,8 +24,8 @@ func main() {
 	log.SetVerbosityLevel(2)
 
 	tasks := []crawler.CrawlerTask{
-		crawler_tasks.DownloadFollowersTask{
-			ScreenName: "ZBaHJl5FPXtwmtF",
+		crawler_tasks.DownloadTweetsTask{
+			ScreenName: "yurydud",
 		},
 	}
 	pull := crawler.NewTaskPull(tasks)
