@@ -10,18 +10,20 @@ var lock sync.Mutex
 var configFile string
 
 type PostgresAccessConfig struct {
-	Host		string		`yaml:"host"`
-	Port		*uint16		`yaml:"port,omitempty"`
-	Dbname		string		`yaml:"dbname"`
-	User		string		`yaml:"user"`
-	Password	*string		`yaml:"password,omitempty"`
+	Host     string  `yaml:"host"`
+	Port     *uint16 `yaml:"port,omitempty"`
+	Dbname   string  `yaml:"dbname"`
+	User     string  `yaml:"user"`
+	Password *string `yaml:"password,omitempty"`
 }
 
 type MasterConfig struct {
-	NumOfWorkers		int							`yaml:"num_of_workers"`
-	PostgresAccess		PostgresAccessConfig		`yaml:"pg_access"`
-	Cookies				map[string]string			`yaml:"cookies"`
-	Headers				map[string]string			`yaml:"headers"`
+	NumOfWorkers       int                  `yaml:"num_of_workers"`
+	QueueSize          int                  `yaml:"queue_size"`
+	QueueNoRefillLimit int                  `yaml:"queue_no_refill_limit"`
+	PostgresAccess     PostgresAccessConfig `yaml:"pg_access"`
+	Cookies            map[string]string    `yaml:"cookies"`
+	Headers            map[string]string    `yaml:"headers"`
 }
 
 func Init(configFilePath string) {

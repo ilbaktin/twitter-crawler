@@ -1,27 +1,27 @@
-num_of_workers: 10
+num_of_workers: 1
+queue_size: 100
+queue_no_refill_limit: 20
 pg_access:
   host: localhost
   dbname: twitter
-  user: crawler
+  user: ""
   password: ""
 cookies:
-  __ncuid: ""
   _twitter_sess: ""
-  auth_token: ""
-  csrf_same_site: ""
-  csrf_same_site_set: 1
   ct0: ""
-  dnt: 1
+
+  auth_token: ""
   guest_id: ""
   kdt: ""
   personalization_id: ""
-  remember_checked_on: 1
-  rweb_optin: top_no_out
-  syndication_guest_id: ""
-  tfw_exp: 0
   twid: ""
-  twtr_pixel_opt_in: Y
-  lang: en
+  dnt: 1
+
+  _ga: ""
+  csrf_same_site: 1
+  csrf_same_site_set: 1
+  rweb_optin: side_no_out
+  ads_prefs: ""
 headers:
   authorization: ""
-
+  connection: "keep-alive"

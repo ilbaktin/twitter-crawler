@@ -2,12 +2,14 @@ package crawler_tasks
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 	"univer/twitter-crawler/conf"
 	"univer/twitter-crawler/log"
 	"univer/twitter-crawler/models"
@@ -15,15 +17,44 @@ import (
 )
 
 type DownloadFollowersTask struct {
-	ScreenName		string
+	ScreenName string
 
-	cookies			map[string]string
-	headers			map[string]string
+	cookies map[string]string
+	headers map[string]string
 	*log.Logger
+	httpClient *http.Client
 }
 
-func (task DownloadFollowersTask) Exec(stor storage.Storage) error {
+func (task *DownloadFollowersTask) HttpClient() *http.Client {
+	return task.httpClient
+}
+
+func (task *DownloadFollowersTask) initTor() error {
+	var torProxy string = "socks5://127.0.0.1:9050" // 9150 w/ Tor Browser
+	torProxyUrl, err := url.Parse(torProxy)
+	if err != nil {
+		return errors.Wrapf(err, "Error parsing Tor proxy URL: %s", torProxy)
+	}
+
+	// Set up a custom HTTP transport to use the proxy and create the client
+	torTransport := &http.Transport{Proxy: http.ProxyURL(torProxyUrl)}
+	task.httpClient = &http.Client{
+		Transport: torTransport,
+		Timeout:   time.Second * 5,
+	}
+
+	return nil
+}
+
+func (task *DownloadFollowersTask) Exec(stor storage.Storage) error {
 	task.Logger = log.NewLogger(fmt.Sprintf("DownloadFollowersTask '%s'", task.ScreenName))
+	err := task.initTor()
+	if err != nil {
+		return errors.Wrapf(err, "can't init tor")
+	}
+	task.LogInfo("Tor initialized!")
+
+	task.Logger.LogInfo("start downloading followers")
 
 	config, err := conf.LoadConfig()
 	if err != nil {
@@ -40,7 +71,11 @@ func (task DownloadFollowersTask) Exec(stor storage.Storage) error {
 
 	user, err := stor.GetUserByScreenName(task.ScreenName)
 	if err != nil {
-		task.LogInfo(fmt.Sprintf("User '%s' not found in db, requesting...", task.ScreenName))
+		task.LogInfo("User '%s' not found in db, requesting...", task.ScreenName)
+		//err = task.doShowOptionsRequest()
+		//if err != nil {
+		//	return nil
+		//}
 		user, err = task.doShowRequest()
 		if err != nil {
 			return err
@@ -49,10 +84,16 @@ func (task DownloadFollowersTask) Exec(stor storage.Storage) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		task.LogInfo("User '%s' found in db, next cursor = %s", task.ScreenName, user.NextCursorStr)
 	}
 	cursor := user.NextCursorStr
 
 	for cursor != "0" {
+		//err = task.doOptionsUsersRequest(user.Id, cursor)
+		//if err != nil {
+		//	return nil
+		//}
 		usersJsonResp, err := task.doUsersRequest(user.Id, cursor)
 		if err != nil {
 			return err
@@ -61,7 +102,7 @@ func (task DownloadFollowersTask) Exec(stor storage.Storage) error {
 		followers := make([]*models.Follower, 0, len(users))
 		for _, follower := range users {
 			followers = append(followers, &models.Follower{
-				UserId: user.Id,
+				UserId:     user.Id,
 				FollowerId: follower.Id,
 			})
 		}
@@ -76,31 +117,33 @@ func (task DownloadFollowersTask) Exec(stor storage.Storage) error {
 
 		user.NextCursor = int64(usersJsonResp.NextCursor)
 		user.NextCursorStr = usersJsonResp.NextCursorStr
-		user.IsFollowersDownloaded = usersJsonResp.NextCursor == 0
+		user.AreFollowersDownloaded = usersJsonResp.NextCursor == 0
 		err = stor.UpdateUserState(user)
 		if err != nil {
 			return err
 		}
 
 		cursor = user.NextCursorStr
+
+		task.LogInfo("downloaded %d followers", len(followers))
 	}
-	task.LogInfo(fmt.Sprintf("Followers successfully downloaded."))
+	task.LogInfo("Followers successfully downloaded.")
 
 	return nil
 }
 
-func (task DownloadFollowersTask) doShowRequest() (user *models.User, err error)  {
+func (task *DownloadFollowersTask) doShowRequest() (user *models.User, err error) {
 	showReq, err := task.createShowRequest()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(showReq)
+	resp, err := task.HttpClient().Do(showReq)
 	if err != nil {
 		return nil, fmt.Errorf("request failed, err='%v'", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad response status code, got %d, want 200", resp.StatusCode)
+		return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
 	}
 
 	jsonBytes, err := ioutil.ReadAll(resp.Body)
@@ -118,47 +161,62 @@ func (task DownloadFollowersTask) doShowRequest() (user *models.User, err error)
 	return user, nil
 }
 
-func (task DownloadFollowersTask) doOptionsUsersRequest(userId int64, cursor string) error {
+func (task *DownloadFollowersTask) doOptionsUsersRequest(userId int64, cursor string) error {
 	optionsReq, err := task.createUsersOptionsRequest(userId, cursor)
 	if err != nil {
 		return err
 	}
-	optionsResp, err := http.DefaultClient.Do(optionsReq)
+	optionsResp, err := task.HttpClient().Do(optionsReq)
 	if err != nil {
-		return errors.New(fmt.Sprintf("options users request failed, err='%v'", err))
+		return errors.Wrap(err, "options users request failed")
 	}
 	defer optionsResp.Body.Close()
 
 	return nil
 }
 
-func (task DownloadFollowersTask) doShowOptionsRequest() error {
+func (task *DownloadFollowersTask) doShowOptionsRequest() error {
 	optionsReq, err := task.createShowOptionsRequest()
 	if err != nil {
 		return err
 	}
-	optionsResp, err := http.DefaultClient.Do(optionsReq)
+	optionsResp, err := task.HttpClient().Do(optionsReq)
 	if err != nil {
-		return errors.New(fmt.Sprintf("options show request failed, err='%v'", err))
+		return errors.Wrap(err, "options show request failed")
 	}
 	defer optionsResp.Body.Close()
 
 	return nil
 }
 
-func (task DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (userJsonResp *usersJsonResponse, err error) {
+func (task *DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (userJsonResp *usersJsonResponse, err error) {
 	usersReq, err := task.createUsersRequest(userId, cursor)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(usersReq)
+	resp, err := task.HttpClient().Do(usersReq)
 	if err != nil {
 		return nil, fmt.Errorf("request failed, err='%v'", err)
 	}
 	defer resp.Body.Close()
+	//respBytes, _ := httputil.DumpResponse(resp, true)
+	//
+	//task.LogInfo("RESP %d:\n %v", resp.StatusCode, string(respBytes))
+	//reader, _ := gzip.NewReader(resp.Body)
 
+	//io.Copy(os.Stdout, reader)
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad response status code, got %d, want 200", resp.StatusCode)
+		//reqBytes, _ := httputil.DumpRequest(usersReq, true)
+		//task.LogInfo("REQ:\n %v", string(reqBytes))
+		//
+		//respBytes, _ := httputil.DumpResponse(resp, true)
+		//
+		//task.LogInfo("RESP %d:\n %v", resp.StatusCode, string(respBytes))
+		//reader, _ := gzip.NewReader(resp.Body)
+		//
+		//io.Copy(os.Stdout, reader)
+
+		return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
 	}
 
 	jsonBytes, err := ioutil.ReadAll(resp.Body)
@@ -166,15 +224,15 @@ func (task DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (u
 	usersJsonResp := &usersJsonResponse{}
 	err = json.Unmarshal(jsonBytes, usersJsonResp)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parse response users req")
 	}
 
 	return usersJsonResp, nil
 
 }
 
-func (task DownloadFollowersTask) createShowOptionsRequest() (*http.Request, error) {
-	req, err := http.NewRequest("OPTIONS","https://api.twitter.com/1.1/users/show.json", nil)
+func (task *DownloadFollowersTask) createShowOptionsRequest() (*http.Request, error) {
+	req, err := http.NewRequest("OPTIONS", "https://api.twitter.com/1.1/users/show.json", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +251,6 @@ func (task DownloadFollowersTask) createShowOptionsRequest() (*http.Request, err
 
 	req.URL.RawQuery = q.Encode()
 
-
 	req.Header.Set("Access-Control-Request-Headers", "authorization,x-csrf-token,x-twitter-active-user,x-twitter-auth-type,x-twitter-client-language")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	req.Header.Set("Origin", "https://twitter.com")
@@ -205,8 +262,8 @@ func (task DownloadFollowersTask) createShowOptionsRequest() (*http.Request, err
 	return req, nil
 }
 
-func (task DownloadFollowersTask) createShowRequest() (*http.Request, error) {
-	req, err := http.NewRequest("GET","https://api.twitter.com/1.1/users/show.json", nil)
+func (task *DownloadFollowersTask) createShowRequest() (*http.Request, error) {
+	req, err := http.NewRequest("GET", "https://api.twitter.com/1.1/users/show.json", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -239,9 +296,8 @@ func (task DownloadFollowersTask) createShowRequest() (*http.Request, error) {
 	return req, nil
 }
 
-
-func (task DownloadFollowersTask) createUsersOptionsRequest(userId int64, cursor string) (*http.Request, error) {
-	req, err := http.NewRequest("OPTIONS","https://api.twitter.com/1.1/followers/list.json", nil)
+func (task *DownloadFollowersTask) createUsersOptionsRequest(userId int64, cursor string) (*http.Request, error) {
+	req, err := http.NewRequest("OPTIONS", "https://api.twitter.com/1.1/followers/list.json", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +314,7 @@ func (task DownloadFollowersTask) createUsersOptionsRequest(userId int64, cursor
 	q.Add("skip_status", "1")
 	q.Add("cursor", cursor)
 	q.Add("user_id", strconv.FormatInt(userId, 10))
-	q.Add("count", "20")
+	q.Add("count", "200")
 
 	req.URL.RawQuery = q.Encode()
 
@@ -273,7 +329,7 @@ func (task DownloadFollowersTask) createUsersOptionsRequest(userId int64, cursor
 	return req, nil
 }
 
-func (task DownloadFollowersTask) createUsersRequest(userId int64, cursor string) (*http.Request, error) {
+func (task *DownloadFollowersTask) createUsersRequest(userId int64, cursor string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", "https://api.twitter.com/1.1/followers/list.json", nil)
 	if err != nil {
 		return nil, err
@@ -290,21 +346,26 @@ func (task DownloadFollowersTask) createUsersRequest(userId int64, cursor string
 	q.Add("skip_status", "1")
 	q.Add("cursor", cursor)
 	q.Add("user_id", strconv.FormatInt(userId, 10))
-	q.Add("count", "20")
+	q.Add("count", "200")
 
 	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("authorization", task.headers["authorization"])
+	//req.Header.Set("Accept", "api.twitter.com")
+	//req.Header.Set("Accept-Language", "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3")
+	//req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+
+	req.Header.Set("Host", "api.twitter.com")
 	req.Header.Set("Origin", "https://twitter.com")
 	req.Header.Set("Referer", fmt.Sprintf("https://twitter.com/%s/followers", task.ScreenName))
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0")
 	req.Header.Set("x-csrf-token", task.cookies["ct0"])
 	req.Header.Set("x-twitter-active-user", "yes")
 	req.Header.Set("x-twitter-auth-type", "OAuth2Session")
 	req.Header.Set("x-twitter-client-language", "en")
+	req.Header.Set("x-twitter-polling", "true")
 
 	setCookiesForRequest(req, task.cookies)
 
 	return req, nil
 }
-

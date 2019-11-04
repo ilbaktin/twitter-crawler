@@ -1,31 +1,38 @@
 package crawler
 
 import (
-	"fmt"
+	"github.com/hako/durafmt"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
+	crawler_tasks "univer/twitter-crawler/crawler-tasks"
 	"univer/twitter-crawler/log"
 	"univer/twitter-crawler/storage"
 )
 
 type CrawlerMaster struct {
-	workers			[]*CrawlerWorker
-	taskPull		*TaskPull
-	lock			sync.Mutex
+	workers   []*CrawlerWorker
+	taskQueue chan CrawlerTask //*TaskQueue
+	lock      sync.Mutex
 
-	stor			storage.Storage
-	workerDoneCh	chan int
+	stor         storage.Storage
+	workerDoneCh chan int
+
+	queueSize          int
+	queueNoRefillLimit int
 
 	*log.Logger
 }
 
-func NewCrawlerMaster(numOfWorkers int, pull *TaskPull, stor storage.Storage) *CrawlerMaster {
+func NewCrawlerMaster(numOfWorkers int, queueSize int, queueNoRefillLimit int, stor storage.Storage) *CrawlerMaster {
 	logger := log.NewLogger("CrawlerMaster")
 
 	master := &CrawlerMaster{
-		taskPull: pull,
-		workerDoneCh: make(chan int),
-		stor: stor,
+		taskQueue:          make(chan CrawlerTask, queueSize),
+		workerDoneCh:       make(chan int),
+		stor:               stor,
+		queueSize:          queueSize,
+		queueNoRefillLimit: queueNoRefillLimit,
 	}
 	master.Logger = logger
 	workers := make([]*CrawlerWorker, 0, numOfWorkers)
@@ -46,7 +53,7 @@ func (m *CrawlerMaster) Run() error {
 	startTime := time.Now()
 	workersDone := 0
 
-	loop:
+loop:
 	for {
 		select {
 		case _ = <-m.workerDoneCh:
@@ -54,12 +61,35 @@ func (m *CrawlerMaster) Run() error {
 			if workersDone == len(m.workers) {
 				break loop
 			}
-		case <-time.After(10 * time.Second):
+		case <-time.After(5 * time.Second):
+
 			currentTime := time.Now()
-			timePassed := currentTime.Sub(startTime)
-			m.LogInfo(fmt.Sprintf("Time passed: %v", timePassed))
-			m.LogInfo("Waiting for workers...")
+			timePassed := durafmt.Parse(currentTime.Sub(startTime)).LimitFirstN(3).String()
+			m.LogInfo("Time passed: %s", timePassed)
+
+			if len(m.taskQueue) < m.queueNoRefillLimit {
+				newTasksAmount, err := m.refillTaskQueue()
+				if err != nil {
+					return errors.Wrap(err, "get users with not downloaded followers")
+				}
+				m.LogInfo("%d new tasks received", newTasksAmount)
+			}
 		}
 	}
 	return nil
+}
+
+func (m *CrawlerMaster) refillTaskQueue() (int64, error) {
+	// Этот код не универсальный, заточен под единственный вид тасков, TODO: придумать как обобщить
+	newTasksAmount := int64(m.queueSize - m.queueNoRefillLimit)
+	users, err := m.stor.GetUsersWithNotDownloadedFollowers(newTasksAmount)
+	if err != nil {
+		return 0, err
+	}
+	for _, user := range users {
+		m.taskQueue <- &crawler_tasks.DownloadFollowersTask{
+			ScreenName: user.ScreenName,
+		}
+	}
+	return newTasksAmount, nil
 }

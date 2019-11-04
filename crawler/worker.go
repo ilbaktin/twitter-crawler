@@ -6,9 +6,9 @@ import (
 )
 
 type CrawlerWorker struct {
-	id			int
-	master		*CrawlerMaster
-	isAlive		bool
+	id      int
+	master  *CrawlerMaster
+	isAlive bool
 	*log.Logger
 }
 
@@ -16,7 +16,7 @@ func NewCrawlerWorker(id int, m *CrawlerMaster) *CrawlerWorker {
 	logger := log.NewLogger(fmt.Sprintf("CrawlerWorker %d", id))
 
 	worker := &CrawlerWorker{
-		id:	id,
+		id:     id,
 		master: m,
 	}
 	worker.Logger = logger
@@ -32,14 +32,16 @@ func (w *CrawlerWorker) Run() {
 
 	w.isAlive = true
 	for w.isAlive {
-		task := w.master.taskPull.Get()
-		if task == nil {
+		task, ok := <-w.master.taskQueue
+		if !ok {
 			w.master.workerDoneCh <- w.id
 			break
 		}
 		err := task.Exec(w.master.stor)
 		if err != nil {
-			w.LogError(fmt.Sprintf("error running task, err='%v'", err))
+			w.LogError("error running task, err='%v'", err)
+			//w.master.workerDoneCh <- w.id
+			//break
 			continue
 		}
 	}

@@ -40,7 +40,7 @@ func (task DownloadTweetsTask) Exec(stor storage.Storage) error {
 
 	user, err := stor.GetUserByScreenName(task.ScreenName)
 	if err != nil {
-		task.LogInfo(fmt.Sprintf("User '%s' not found in db, requesting...", task.ScreenName))
+		task.LogInfo("User '%s' not found in db, requesting...", task.ScreenName)
 		user, err = task.doShowRequest()
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (task DownloadTweetsTask) Exec(stor storage.Storage) error {
 		return err
 	}
 
-	task.LogInfo(fmt.Sprintf("Tweets successfully downloaded for user %s.", task.ScreenName))
+	task.LogInfo("Tweets successfully downloaded for user %s.", task.ScreenName)
 
 	return nil
 }

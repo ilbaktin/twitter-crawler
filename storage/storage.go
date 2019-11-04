@@ -17,8 +17,5 @@ type Storage interface {
 	UpdateUserState(user *models.User) error
 	GetUserById(id int64) (*models.User, error)
 	GetUserByScreenName(screenName string) (*models.User, error)
+	GetUsersWithNotDownloadedFollowers(n int64) ([]*models.User, error)
 }
-
-
-
-

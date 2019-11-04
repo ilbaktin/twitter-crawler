@@ -11,7 +11,7 @@ import (
 )
 
 type PgStorage struct {
-	pgConn		*sqlx.DB
+	pgConn *sqlx.DB
 }
 
 func NewPgStorage(config conf.PostgresAccessConfig) (*PgStorage, error) {
@@ -27,9 +27,9 @@ func NewPgStorage(config conf.PostgresAccessConfig) (*PgStorage, error) {
 	}
 	connUrl := url.URL{
 		Scheme: "postgres",
-		Host: host,
-		User: userInfo,
-		Path: config.Dbname,
+		Host:   host,
+		User:   userInfo,
+		Path:   config.Dbname,
 	}
 	q := connUrl.Query()
 	q.Add("sslmode", "disable")
@@ -45,7 +45,7 @@ func NewPgStorage(config conf.PostgresAccessConfig) (*PgStorage, error) {
 
 func (s *PgStorage) SaveFollower(userId, followerId int64) error {
 	follower := &models.Follower{
-		UserId: userId,
+		UserId:     userId,
 		FollowerId: followerId,
 	}
 	_, err := s.pgConn.NamedExec("INSERT INTO followers (user_id, follower_id) VALUES (:user_id, :follower_id)", follower)
@@ -100,9 +100,9 @@ func (s *PgStorage) AddNewUsers(users []*models.User) error {
 		}
 	}()
 	stmt, txErr := tx.PrepareNamed(
-`
-INSERT INTO users (id, id_str, screen_name, name, created_at, followers_count, friends_count, verified, date_last_change) 
-VALUES (:id, :id_str, :screen_name, :name, :created_at, :followers_count, :friends_count, :verified, :date_last_change) 
+		`
+INSERT INTO users (id, id_str, screen_name, name, created_at, followers_count, friends_count, verified, date_last_change, protected, location) 
+VALUES (:id, :id_str, :screen_name, :name, :created_at, :followers_count, :friends_count, :verified, :date_last_change, :protected, :location) 
 ON CONFLICT ON CONSTRAINT users_pkey DO NOTHING`)
 	if txErr != nil {
 		return txErr
@@ -129,8 +129,8 @@ ON CONFLICT ON CONSTRAINT users_pkey DO NOTHING`)
 func (s *PgStorage) UpdateUserState(user *models.User) error {
 	user.DateLastChange = time.Now()
 	_, err := s.pgConn.NamedExec(
-`UPDATE users SET (next_cursor, next_cursor_str, are_followers_downloaded, date_last_change) = 
-(:next_cursor, :next_cursor_str, :are_followers_downloaded, :date_last_change) WHERE id=:id
+		`UPDATE users SET (next_cursor, next_cursor_str, are_followers_downloaded, date_last_change, protected, location) = 
+(:next_cursor, :next_cursor_str, :are_followers_downloaded, :date_last_change, :protected, :location) WHERE id=:id
 `, user)
 	return err
 }
@@ -153,5 +153,11 @@ func (s *PgStorage) GetUserByScreenName(screenName string) (*models.User, error)
 	return user, nil
 }
 
-
-
+func (s *PgStorage) GetUsersWithNotDownloadedFollowers(n int64) ([]*models.User, error) {
+	users := make([]*models.User, 0, n)
+	err := s.pgConn.Select(&users, "SELECT * FROM users WHERE users.are_followers_downloaded=false LIMIT $1", n)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}

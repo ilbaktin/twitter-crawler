@@ -3,8 +3,8 @@ package log
 import "fmt"
 
 type Logger struct {
-	Name	string
-	prefix	string
+	Name   string
+	prefix string
 }
 
 func NewLogger(name string) *Logger {
@@ -15,14 +15,14 @@ func NewLogger(name string) *Logger {
 	}
 }
 
-func (l *Logger) LogInfo(msg string) {
-	LogInfo(l.prefix + msg)
+func (l *Logger) LogInfo(msg string, args ...interface{}) {
+	LogInfo(l.prefix+msg, args...)
 }
 
-func (l *Logger) LogWarning(msg string) {
-	LogWarning(l.prefix + msg)
+func (l *Logger) LogWarning(msg string, args ...interface{}) {
+	LogWarning(l.prefix+msg, args...)
 }
 
-func (l *Logger) LogError(msg string) {
-	LogError(l.prefix + msg)
+func (l *Logger) LogError(msg string, args ...interface{}) {
+	LogError(l.prefix+msg, args...)
 }
