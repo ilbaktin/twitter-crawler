@@ -1,6 +1,7 @@
-num_of_workers: 1
+num_of_workers: 4
 queue_size: 100
 queue_no_refill_limit: 20
+api_limit_timeout: 60 # seconds
 pg_access:
   host: localhost
   dbname: twitter

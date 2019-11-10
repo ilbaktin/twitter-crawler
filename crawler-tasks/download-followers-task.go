@@ -40,7 +40,7 @@ func (task *DownloadFollowersTask) initTor() error {
 	torTransport := &http.Transport{Proxy: http.ProxyURL(torProxyUrl)}
 	task.httpClient = &http.Client{
 		Transport: torTransport,
-		Timeout:   time.Second * 5,
+		Timeout:   time.Second * 10,
 	}
 
 	return nil
@@ -95,9 +95,22 @@ func (task *DownloadFollowersTask) Exec(stor storage.Storage) error {
 		//	return nil
 		//}
 		usersJsonResp, err := task.doUsersRequest(user.Id, cursor)
-		if err != nil {
+		switch err {
+		case ErrLimitReached:
+			sleepDur := time.Duration(config.ApiLimitTimeout) * time.Second
+			time.Sleep(sleepDur)
+			log.LogInfo("Sleep for %d seconds cause 429 status received", int(sleepDur.Seconds()))
 			return err
+		case ErrPrivateProfile:
+			err = stor.UpdateUserState(user)
+			log.LogInfo("Exit cause user has got private profile")
+			return err
+		default:
+			if err != nil {
+				return err
+			}
 		}
+
 		users := usersJsonResp.Users
 		followers := make([]*models.Follower, 0, len(users))
 		for _, follower := range users {
@@ -142,8 +155,15 @@ func (task *DownloadFollowersTask) doShowRequest() (user *models.User, err error
 		return nil, fmt.Errorf("request failed, err='%v'", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
+	switch resp.StatusCode {
+	case 429:
+		return nil, ErrLimitReached
+	case 401:
+		return nil, ErrPrivateProfile
+	default:
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
+		}
 	}
 
 	jsonBytes, err := ioutil.ReadAll(resp.Body)
@@ -153,6 +173,7 @@ func (task *DownloadFollowersTask) doShowRequest() (user *models.User, err error
 	if err != nil {
 		return nil, err
 	}
+	*user.AdditionalData = string(jsonBytes)
 
 	//user.AdditionalData = string(jsonBytes)
 	user.NextCursor = -1
@@ -189,6 +210,9 @@ func (task *DownloadFollowersTask) doShowOptionsRequest() error {
 	return nil
 }
 
+var ErrLimitReached = errors.New("api limit reached")
+var ErrPrivateProfile = errors.New("user has got private profile")
+
 func (task *DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (userJsonResp *usersJsonResponse, err error) {
 	usersReq, err := task.createUsersRequest(userId, cursor)
 	if err != nil {
@@ -199,24 +223,24 @@ func (task *DownloadFollowersTask) doUsersRequest(userId int64, cursor string) (
 		return nil, fmt.Errorf("request failed, err='%v'", err)
 	}
 	defer resp.Body.Close()
+	//reqBytes, _ := httputil.DumpRequest(usersReq, true)
+	//task.LogInfo("REQ:\n %v", string(reqBytes))
+	//
 	//respBytes, _ := httputil.DumpResponse(resp, true)
 	//
 	//task.LogInfo("RESP %d:\n %v", resp.StatusCode, string(respBytes))
 	//reader, _ := gzip.NewReader(resp.Body)
-
+	//
 	//io.Copy(os.Stdout, reader)
-	if resp.StatusCode != 200 {
-		//reqBytes, _ := httputil.DumpRequest(usersReq, true)
-		//task.LogInfo("REQ:\n %v", string(reqBytes))
-		//
-		//respBytes, _ := httputil.DumpResponse(resp, true)
-		//
-		//task.LogInfo("RESP %d:\n %v", resp.StatusCode, string(respBytes))
-		//reader, _ := gzip.NewReader(resp.Body)
-		//
-		//io.Copy(os.Stdout, reader)
-
-		return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
+	switch resp.StatusCode {
+	case 429:
+		return nil, ErrLimitReached
+	case 401:
+		return nil, ErrPrivateProfile
+	default:
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("bad response status code, got %d (%s), want 200", resp.StatusCode, resp.Status)
+		}
 	}
 
 	jsonBytes, err := ioutil.ReadAll(resp.Body)

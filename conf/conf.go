@@ -21,6 +21,7 @@ type MasterConfig struct {
 	NumOfWorkers       int                  `yaml:"num_of_workers"`
 	QueueSize          int                  `yaml:"queue_size"`
 	QueueNoRefillLimit int                  `yaml:"queue_no_refill_limit"`
+	ApiLimitTimeout    int                  `yaml:"api_limit_timeout"`
 	PostgresAccess     PostgresAccessConfig `yaml:"pg_access"`
 	Cookies            map[string]string    `yaml:"cookies"`
 	Headers            map[string]string    `yaml:"headers"`
