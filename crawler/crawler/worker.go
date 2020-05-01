@@ -2,7 +2,7 @@ package crawler
 
 import (
 	"fmt"
-	"univer/twitter-crawler/log"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
 )
 
 type CrawlerWorker struct {

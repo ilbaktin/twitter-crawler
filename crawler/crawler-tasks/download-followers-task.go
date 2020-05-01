@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/scarecrow6977/twitter-crawler/crawler/conf"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
+	"github.com/scarecrow6977/twitter-crawler/crawler/models"
+	"github.com/scarecrow6977/twitter-crawler/crawler/storage"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-	"univer/twitter-crawler/conf"
-	"univer/twitter-crawler/log"
-	"univer/twitter-crawler/models"
-	"univer/twitter-crawler/storage"
 )
 
 type DownloadFollowersTask struct {
@@ -107,6 +107,9 @@ func (task *DownloadFollowersTask) Exec(stor storage.Storage) error {
 			return err
 		default:
 			if err != nil {
+				sleepDur := 15 * time.Second
+				time.Sleep(sleepDur)
+				log.LogInfo("Sleep for %d seconds cause unknown error", int(sleepDur.Seconds()))
 				return err
 			}
 		}
@@ -173,7 +176,7 @@ func (task *DownloadFollowersTask) doShowRequest() (user *models.User, err error
 	if err != nil {
 		return nil, err
 	}
-	*user.AdditionalData = string(jsonBytes)
+	//user.AdditionalData = string(jsonBytes)
 
 	//user.AdditionalData = string(jsonBytes)
 	user.NextCursor = -1

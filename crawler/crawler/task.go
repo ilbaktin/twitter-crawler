@@ -1,6 +1,6 @@
 package crawler
 
-import "univer/twitter-crawler/storage"
+import "github.com/scarecrow6977/twitter-crawler/crawler/storage"
 
 type CrawlerTask interface {
 	Exec(stor storage.Storage) error

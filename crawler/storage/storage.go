@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"univer/twitter-crawler/models"
-	"univer/twitter-crawler/storage/fs-storage"
+	"github.com/scarecrow6977/twitter-crawler/crawler/models"
+	"github.com/scarecrow6977/twitter-crawler/crawler/storage/fs-storage"
 )
 
 type StorageOld interface {
@@ -18,4 +18,7 @@ type Storage interface {
 	GetUserById(id int64) (*models.User, error)
 	GetUserByScreenName(screenName string) (*models.User, error)
 	GetUsersWithNotDownloadedFollowers(n int64) ([]*models.User, error)
+	GetUsersWithDownloadedFollowers(n int64) ([]*models.User, error)
+	GetUsersWithNotDownloadedFollowersSorted(n, offset int64) ([]*models.User, error)
+	GetUsersWithDownloadedFollowersSorted(n, offset int64) ([]*models.User, error)
 }

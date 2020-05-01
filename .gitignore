@@ -1,5 +1,5 @@
 .idea/
-data/
+/data/
 config.yaml
 crawler.log
 .DS_Store

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/scarecrow6977/twitter-crawler/crawler/conf"
+	"github.com/scarecrow6977/twitter-crawler/crawler/models"
 	"net/url"
 	"time"
-	"univer/twitter-crawler/conf"
-	"univer/twitter-crawler/models"
 )
 
 type PgStorage struct {
@@ -160,4 +160,49 @@ func (s *PgStorage) GetUsersWithNotDownloadedFollowers(n int64) ([]*models.User,
 		return nil, err
 	}
 	return users, nil
+}
+
+func (s *PgStorage) GetUsersWithNotDownloadedFollowersSorted(n, offset int64) ([]*models.User, error) {
+	users := make([]*models.User, 0, n)
+	err := s.pgConn.Select(&users, "SELECT * FROM users WHERE users.are_followers_downloaded=false ORDER BY users.id LIMIT $1 OFFSET $2 ", n, offset)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (s *PgStorage) GetUsersWithDownloadedFollowers(n int64) ([]*models.User, error) {
+	users := make([]*models.User, 0, n)
+	err := s.pgConn.Select(&users, "SELECT * FROM users WHERE users.are_followers_downloaded=true LIMIT $1", n)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (s *PgStorage) GetUsersWithDownloadedFollowersSorted(n, offset int64) ([]*models.User, error) {
+	users := make([]*models.User, 0, n)
+	err := s.pgConn.Select(&users, "SELECT * FROM users WHERE users.are_followers_downloaded=true ORDER BY users.id LIMIT $1 OFFSET $2", n, offset)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (s *PgStorage) GetFollowers(userId int64) ([]*models.User, error) {
+	followers := make([]*models.User, 0)
+	err := s.pgConn.Select(&followers, "SELECT u.* FROM users u JOIN followers f ON u.id=f.follower_id WHERE f.user_id=$1", userId)
+	if err != nil {
+		return nil, err
+	}
+	return followers, nil
+}
+
+func (s *PgStorage) GetFollowerIds(userId int64) ([]int64, error) {
+	followerIds := make([]int64, 0)
+	err := s.pgConn.Select(&followerIds, "SELECT follower_id FROM followers WHERE user_id=$1", userId)
+	if err != nil {
+		return nil, err
+	}
+	return followerIds, nil
 }

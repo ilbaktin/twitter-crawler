@@ -2,10 +2,10 @@ package fs_storage
 
 import (
 	"fmt"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
 	"io/ioutil"
 	"os"
 	"path"
-	"univer/twitter-crawler/log"
 )
 
 const rootFolderPath = "data"
@@ -28,7 +28,7 @@ func (stor *FsStorage) Save(record *Record) error {
 		os.MkdirAll(dirPath, os.ModePerm)
 	}
 
-	files,_ := ioutil.ReadDir(dirPath)
+	files, _ := ioutil.ReadDir(dirPath)
 	nextId := len(files)
 
 	fileName := path.Join(dirPath, fmt.Sprintf("%d.%s", nextId, record.Format))
@@ -41,6 +41,6 @@ func (stor *FsStorage) GetLastCursor() (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
-func (stor *FsStorage) SetLastCursor(cursor string) (error) {
+func (stor *FsStorage) SetLastCursor(cursor string) error {
 	return fmt.Errorf("not implemented")
 }

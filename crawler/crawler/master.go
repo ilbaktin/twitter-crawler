@@ -3,16 +3,16 @@ package crawler
 import (
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
+	crawler_tasks "github.com/scarecrow6977/twitter-crawler/crawler/crawler-tasks"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
+	"github.com/scarecrow6977/twitter-crawler/crawler/storage"
 	"sync"
 	"time"
-	crawler_tasks "univer/twitter-crawler/crawler-tasks"
-	"univer/twitter-crawler/log"
-	"univer/twitter-crawler/storage"
 )
 
 type CrawlerMaster struct {
 	workers   []*CrawlerWorker
-	taskQueue chan CrawlerTask //*TaskQueue
+	taskQueue chan CrawlerTask
 	lock      sync.Mutex
 
 	stor         storage.Storage

@@ -3,15 +3,15 @@ package crawler_tasks
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/scarecrow6977/twitter-crawler/crawler/conf"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
+	"github.com/scarecrow6977/twitter-crawler/crawler/models"
+	"github.com/scarecrow6977/twitter-crawler/crawler/storage"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"univer/twitter-crawler/conf"
-	"univer/twitter-crawler/log"
-	"univer/twitter-crawler/models"
-	"univer/twitter-crawler/storage"
 )
 
 type DownloadTweetsTask struct {

@@ -1,8 +1,8 @@
 package pg_storage
 
 import (
+	"github.com/scarecrow6977/twitter-crawler/crawler/conf"
 	"testing"
-	"univer/twitter-crawler/conf"
 )
 
 //func TestPgStorage_AddNewFollowers(t *testing.T) {
@@ -140,7 +140,7 @@ func TestPgStorage_GetUsersWithNotDownloadedFollowers(t *testing.T) {
 		return
 	}
 	var usersAmount int64 = 100
-	users, err := s.GetUsersWithNotDownloadedFollowers(usersAmount)
+	users, err := s.GetUsersWithNotDownloadedFollowers(usersAmount, 0)
 	if err != nil {
 		t.Fatalf("can't get users with not downloaded followers, err='%v'", err)
 	}

@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"univer/twitter-crawler/conf"
-	"univer/twitter-crawler/crawler"
-	"univer/twitter-crawler/log"
-	"univer/twitter-crawler/storage/pg-storage"
+	"github.com/scarecrow6977/twitter-crawler/crawler/conf"
+	"github.com/scarecrow6977/twitter-crawler/crawler/crawler"
+	"github.com/scarecrow6977/twitter-crawler/crawler/log"
+	"github.com/scarecrow6977/twitter-crawler/crawler/storage/pg-storage"
 )
 
 func main() {

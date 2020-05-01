@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Id                     int64     `db:"id" json:"id"`
@@ -19,4 +21,31 @@ type User struct {
 	Protected              *bool     `db:"protected" json:"protected"`
 	Location               *string   `db:"location" json:"location"`
 	Description            string    `db:"-" json:"description"`
+}
+
+func minInt(ints ...int) int {
+	if len(ints) == 0 {
+		return 0
+	}
+	min := ints[0]
+	for _, num := range ints {
+		if num < min {
+			min = num
+		}
+	}
+	return min
+}
+
+func BatchUsersArray(arr []*User, batchSize int) [][]*User {
+	batchCount := len(arr)/batchSize + 1
+	batched := make([][]*User, 0, batchCount)
+	for i := 0; i < batchCount; i++ {
+
+		lowerBound := i * batchSize
+		upperBound := minInt((i+1)*batchSize, len(arr))
+		batch := arr[lowerBound:upperBound]
+		batched = append(batched, batch)
+	}
+
+	return batched
 }

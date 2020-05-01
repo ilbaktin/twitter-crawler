@@ -1,6 +1,6 @@
 package crawler_tasks
 
-import "univer/twitter-crawler/models"
+import "github.com/scarecrow6977/twitter-crawler/crawler/models"
 
 type usersJsonResponse struct {
 	Users             []*models.User `json:"users"`
